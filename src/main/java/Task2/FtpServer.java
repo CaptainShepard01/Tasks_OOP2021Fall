@@ -16,28 +16,22 @@ public class FtpServer {
 
     private String ip;
 
-    //The ServerSocketChannel channel belonging to the server
     private ServerSocketChannel serverSocketChannel;
 
-    //Multiplex io scheduler
     private Selector selector;
 
-    //For ftp control connection, the amount of task2.data transferred is small,
-    // so the setting here is relatively small
     private ByteBuffer inputBuffer = ByteBuffer.allocate(100);
 
     public FtpServer(int port, String ip) throws IOException {
 
         selector = Selector.open();
 
-        //Used for connection establishment
         serverSocketChannel = ServerSocketChannel.open();
 
         serverSocketChannel.socket().bind(new InetSocketAddress(port));
 
         serverSocketChannel.configureBlocking(false);
 
-        //Register the channel with the selector
         SelectionKey selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         System.out.println("Server on.....");
@@ -65,14 +59,9 @@ public class FtpServer {
         if (key.isAcceptable()) {
             accept(key);
         }
-        //The completion of the read event is the arrival of the client command
         else if (key.isReadable()) {
             read(key);
         }
-        //Tests whether this key's channel is ready for writing,
-        // test whether the channel corresponding to this event can already write task2.data
-        //Here is a unified return to the task2.data, what is needed,
-        // and the corresponding key, which contains all the task2.data we need.
         else if (key.isWritable()) {
             write(key);
         }
@@ -80,9 +69,9 @@ public class FtpServer {
 
     /**
      * Processing when the client requests to establish a connection
-     * (1) Establish a tcp connection
-     * (2) Get the channel corresponding to the connection
-     * (3) Register and connect to the multi-channel io scheduler selector
+     * Establish a tcp connection
+     * Get the channel corresponding to the connection
+     * Register and connect to the multi-channel io scheduler selector
      *
      * @param key
      * @throws IOException
@@ -91,10 +80,6 @@ public class FtpServer {
         System.out.println("Establish connection。。。。");
         SocketChannel socketChannel = serverSocketChannel.accept();
         socketChannel.configureBlocking(false);
-        //Register a tcp connection channel to the scheduler,
-        // and at the same time be interested in the write event
-        // (it will be executed soon, because the write operation
-        // is ready immediately after registration)
         SelectionKey socketkey = socketChannel.register(selector, SelectionKey.OP_WRITE);
         String response = "220 \r\n";
         socketkey.attach(response);
@@ -103,10 +88,10 @@ public class FtpServer {
     public void read(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
         inputBuffer.clear();
-        //Write task2.data to inputBuffer
+
         int count = socketChannel.read(inputBuffer);
         String command = new String(inputBuffer.array(), 0, count);
-        //Clear the buffer task2.data to prepare for the next write
+
         inputBuffer.clear();
         if (command != null) {
             String[] datas = command.split("#");
@@ -115,14 +100,10 @@ public class FtpServer {
             if (datas.length >= 2) {
                 data = datas[1];
             }
-            //Obtain the result of command processing
             String response = commandSolver.getResult(data);
 
-            //The event of interest for switching the channel is write
-
             key.interestOps(SelectionKey.OP_WRITE);
-            //The return will be bound to the key, where the key:
-            // represents a certain tcp connection
+
             key.attach(response);
         }
     }
@@ -135,10 +116,9 @@ public class FtpServer {
         ByteBuffer block = ByteBuffer.wrap(response.getBytes());
         block.clear();
         block.put(response.getBytes());
-        //Output to channel
-        block.flip();//Switch to the read mode, because when writing task2.data
-        // to the channel, it actually reads the task2.data from the buffer,
-        // starting from the position, and then to the limit position.
+
+        block.flip();
+
         int i = socketChannel.write(block);
         System.out.println("Sent: " + i + " bytes of task2.data");
         System.out.println("The server sends task2.data to the client--：" + response);
