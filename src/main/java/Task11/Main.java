@@ -21,7 +21,7 @@ public class Main
 
         System.out.print("Enter message: ");
         String message = scanner.nextLine();
-        System.out.println("Original message: ");
+        System.out.println("\nOriginal message: ");
         System.out.println(message);
 
         try
